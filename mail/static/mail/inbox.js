@@ -44,6 +44,7 @@ function compose_email() {
 
 function load_mailbox(mailbox) {
   
+  document.querySelector('#emails-view').innerHTML="";
   // Show the mailbox and hide other views
   document.querySelector('#emails-view').style.display = 'block';
   document.querySelector('#compose-view').style.display = 'none';
@@ -89,6 +90,9 @@ function createEmailDiv(email){
   const wrapper=document.createElement("div");
   wrapper.classList.add('email_wrapper','row','border','border-dark','mb-2','p-1');
   wrapper.addEventListener('click',()=>load_mail(email.id));
+  if (email.read===true){
+    wrapper.style.backgroundColor='grey';
+  }
   const left_wrapper=document.createElement('div');
   left_wrapper.classList.add('left_wrapper','col');
   const text_wrapper=document.createElement('div');
@@ -114,11 +118,14 @@ function createEmailDiv(email){
   wrapper.append(time);
 }
 
+
+
 function load_mail(mail_id){
   console.log(`Loading mail ${mail_id}`);
   fetch(`emails/${mail_id}`)
   .then(response=>response.json())
   .then(email=>{
+  console.log(email)
   document.querySelector('#emails-view').style.display = 'block';
   document.querySelector('#compose-view').style.display = 'none';
 
@@ -131,6 +138,8 @@ function load_mail(mail_id){
   // heading.innerHTML='Mail';
   const status=document.createElement('button');
   status.setAttribute('id','email_status');
+  status.addEventListener('click',()=>archive_mail(email));
+
   if (email.archived==false){
     status.classList.add('btn','btn-primary');
     status.innerHTML='Archive';
@@ -143,11 +152,11 @@ function load_mail(mail_id){
   // mail_header.append(heading);
   mail_header.append(status)
 
-
   const mail_container=document.createElement('div');
   mail_container.classList.add('mail_container','container');
   const mail_col_wrapper=document.createElement('div');
   mail_col_wrapper.classList.add('mail_col_wrapper','col');
+
 
   const subject=document.createElement('div');
   const sender=document.createElement('div');
@@ -171,4 +180,44 @@ function load_mail(mail_id){
   mail_col_wrapper.append(body);
 
   });
+
+  fetch(`emails/${mail_id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+        read: true
+    })
+  })
+  }
+
+  function archive_mail(email){
+  console.log(email.id)
+  console.log(`Archiving mail ${email.id}`);
+  archive(email);
+  load_mailbox('inbox')
+  window.location.reload();
+
+  }
+
+
+
+
+  function archive(email)
+  {
+    if (email.archived===false){
+      fetch(`/emails/${email.id}`,{
+            method:'PUT',
+            body:JSON.stringify({
+            archived:true
+            })
+      });
+  }
+    else if (email.archived==true){
+      fetch(`/emails/${email.id}`,{
+        method:'PUT',
+        body:JSON.stringify({
+          archived:false
+        })
+      });
+      
+    }
   }

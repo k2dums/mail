@@ -26,7 +26,9 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(result => {
         // Print result
         console.log(result);
+        load_mailbox('sent');
     });
+    return false;
 }
 });
 
@@ -43,7 +45,6 @@ function compose_email() {
 }
 
 function load_mailbox(mailbox) {
-  
   document.querySelector('#emails-view').innerHTML="";
   // Show the mailbox and hide other views
   document.querySelector('#emails-view').style.display = 'block';
@@ -58,7 +59,7 @@ function load_mailbox(mailbox) {
     .then(response => response.json())
     .then(emails=>{
          console.log(emails);
-         emails.forEach(email=>{createEmailDiv(email)});
+         emails.forEach(email=>{createEmailDiv(email,mailbox)});
     });
 
 }
@@ -70,7 +71,7 @@ function load_mailbox(mailbox) {
     .then(response => response.json())
     .then(sent_emails => {
         console.log(sent_emails);
-        sent_emails.forEach(email=>{createEmailDiv(email)});
+        sent_emails.forEach(email=>{createEmailDiv(email,mailbox)});
     });
   }
 
@@ -80,16 +81,16 @@ function load_mailbox(mailbox) {
     .then(response => response.json())
     .then(archive_emails => {
           console.log(archive_emails);
-          archive_emails.forEach(email=>createEmailDiv(email));
+          archive_emails.forEach(email=>createEmailDiv(email,mailbox));
     });
   }
 
 }
 
-function createEmailDiv(email){
+function createEmailDiv(email,mailbox){
   const wrapper=document.createElement("div");
   wrapper.classList.add('email_wrapper','row','border','border-dark','mb-2','p-1');
-  wrapper.addEventListener('click',()=>load_mail(email.id));
+  wrapper.addEventListener('click',()=>load_mail(email.id,mailbox));
   if (email.read===true){
     wrapper.style.backgroundColor='grey';
   }
@@ -120,8 +121,9 @@ function createEmailDiv(email){
 
 
 
-function load_mail(mail_id){
+function load_mail(mail_id,mailbox){
   console.log(`Loading mail ${mail_id}`);
+  console.log(mailbox);
   fetch(`emails/${mail_id}`)
   .then(response=>response.json())
   .then(email=>{
@@ -136,21 +138,13 @@ function load_mail(mail_id){
   mail_header.classList.add('mail_header','row','justify-content-end');
   // const heading=document.createElement('h3');
   // heading.innerHTML='Mail';
-  const status=document.createElement('button');
-  status.setAttribute('id','email_status');
-  status.addEventListener('click',()=>archive_mail(email));
-
-  if (email.archived==false){
-    status.classList.add('btn','btn-primary');
-    status.innerHTML='Archive';
+  if (mailbox =='inbox'){
+  
   }
-  else{
-    status.classList.add('btn','btn-dark');
-    status.innerHTML='UnArchive';
-  }
+ 
   parent.append(mail_header);
   // mail_header.append(heading);
-  mail_header.append(status)
+  
 
   const mail_container=document.createElement('div');
   mail_container.classList.add('mail_container','container');
@@ -162,22 +156,51 @@ function load_mail(mail_id){
   const sender=document.createElement('div');
   const body=document.createElement('div');
   const recipients=document.createElement('div');
+  const timestamp=document.createElement('div');
+
+
   sender.classList.add('mail_sender');
   subject.classList.add("mail_subject");
   recipients.classList.add('mail_recipients');
-  body.classList.add('mail_body','mt-3');
+  timestamp.classList.add('mail_timestamp');
+  body.classList.add('mail_body','mt-3','mb-5','ml-4');
+  
 
 
   subject.innerHTML=`<h4>Sub:${email.subject}</h4>`;
   sender.innerHTML=`<b>From:</b> ${email.sender}`;
   recipients.innerHTML=`<b>To:</b> ${email.recipients}`;
+  timestamp.innerHTML=`<b>Timestamp:</b> ${email.timestamp}`;
   body.innerHTML=`${email.body}`
   document.querySelector('#emails-view').append(mail_container);
   mail_container.append(mail_col_wrapper)
   mail_col_wrapper.append(subject);
   mail_col_wrapper.append(sender);
-  mail_col_wrapper.append(recipients)
+  mail_col_wrapper.append(recipients);
+  mail_col_wrapper.append(timestamp);
   mail_col_wrapper.append(body);
+
+  if (mailbox=='inbox')
+  {
+    const status=document.createElement('button');
+    status.setAttribute('id','mail_status');
+    status.addEventListener('click',()=>archive_mail(email));
+    mail_header.append(status);
+    if (email.archived==false){
+      status.classList.add('btn','btn-primary');
+      status.innerHTML='Archive';
+    }
+    else{
+      status.classList.add('btn','btn-dark');
+      status.innerHTML='UnArchive';
+    }  
+    const reply=document.createElement('button');
+    reply.classList.add('btn','btn-primary','rounded-pill');
+    reply.innerHTML='Reply';
+    reply.setAttribute('id','mail_reply');
+    reply.addEventListener('click',()=>reply_mail(email));
+    mail_col_wrapper.append(reply);
+  }
 
   });
 
@@ -220,4 +243,13 @@ function load_mail(mail_id){
       });
       
     }
+  }
+
+  function reply_mail(email)
+  {
+    console.log(`replying email ${email.id}`)
+    compose_email();
+    document.querySelector('#compose-recipients').value =email.sender;
+    document.querySelector('#compose-subject').value = `Re: ${email.subject}`;
+    document.querySelector('#compose-body').value = `On ${email.timestamp} ${email.sender} wrote:\n<${email.body}>`;
   }

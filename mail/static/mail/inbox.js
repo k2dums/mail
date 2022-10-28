@@ -9,11 +9,19 @@ document.addEventListener('DOMContentLoaded', function() {
   load_mailbox('inbox');
 
   document.querySelector('form').onsubmit=()=>{
-    console.log("Form is submitted")
-    r=document.querySelector("#compose-recipients").value
-    s=document.querySelector("#compose-subject").value
-    b=document.querySelector("#compose-body").value
-
+    // console.log("Form is submitted")
+    r=document.querySelector("#compose-recipients").value;
+    s=document.querySelector("#compose-subject").value;
+    b=document.querySelector("#compose-body").value;
+  
+   
+    // b=b.replace(/(\n\n\t)/g,'\n');
+    // b=b.replace(/(\n\t)/g,'\n');
+    // b=b.replace(/(\n\n\n\n|\n\n\n)/g,'\n');
+    //or ( /(\n\n\t|\n\t|\n\n\n|\n\n\n\n) )
+    b=b.replace(/(\n\n\t|\n\t|\n\n\n|\n\n\n\n)/g,'\n');
+    b+='\n';
+  
     fetch('/emails', {
       method: 'POST',
       body: JSON.stringify({
@@ -33,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function compose_email() {
-  console.log("I am composing an email")
+  // console.log("I am composing an email")
   // Show compose view and hide other views
   document.querySelector('#emails-view').style.display = 'none';
   document.querySelector('#compose-view').style.display = 'block';
@@ -58,7 +66,7 @@ function load_mailbox(mailbox) {
     fetch('/emails/inbox')
     .then(response => response.json())
     .then(emails=>{
-         console.log(emails);
+        //  console.log(emails);
          emails.forEach(email=>{createEmailDiv(email,mailbox)});
     });
 
@@ -66,21 +74,21 @@ function load_mailbox(mailbox) {
 
 
   else if(mailbox==="sent"){
-    console.log("Fetching sent mail");
+    // console.log("Fetching sent mail");
     fetch('/emails/sent')
     .then(response => response.json())
     .then(sent_emails => {
-        console.log(sent_emails);
+        // console.log(sent_emails);
         sent_emails.forEach(email=>{createEmailDiv(email,mailbox)});
     });
   }
 
   else if (mailbox==="archive"){
-    console.log("Fetching archive mail");
+    // console.log("Fetching archive mail");
     fetch('/emails/archive')
     .then(response => response.json())
     .then(archive_emails => {
-          console.log(archive_emails);
+          // console.log(archive_emails);
           archive_emails.forEach(email=>createEmailDiv(email,mailbox));
     });
   }
@@ -122,12 +130,12 @@ function createEmailDiv(email,mailbox){
 
 
 function load_mail(mail_id,mailbox){
-  console.log(`Loading mail ${mail_id}`);
-  console.log(mailbox);
+  // console.log(`Loading mail ${mail_id}`);
+  // console.log(mailbox);
   fetch(`emails/${mail_id}`)
   .then(response=>response.json())
   .then(email=>{
-  console.log(email)
+  console.log(email);
   document.querySelector('#emails-view').style.display = 'block';
   document.querySelector('#compose-view').style.display = 'none';
 
@@ -138,10 +146,6 @@ function load_mail(mail_id,mailbox){
   mail_header.classList.add('mail_header','row','justify-content-end');
   // const heading=document.createElement('h3');
   // heading.innerHTML='Mail';
-  if (mailbox =='inbox'){
-  
-  }
- 
   parent.append(mail_header);
   // mail_header.append(heading);
   
@@ -164,14 +168,13 @@ function load_mail(mail_id,mailbox){
   recipients.classList.add('mail_recipients');
   timestamp.classList.add('mail_timestamp');
   body.classList.add('mail_body','mt-3','mb-5','ml-4');
-  
-
-
+  let text=email.body
+  text=text.replaceAll('\n','<br>');
   subject.innerHTML=`<h4>Sub:${email.subject}</h4>`;
   sender.innerHTML=`<b>From:</b> ${email.sender}`;
   recipients.innerHTML=`<b>To:</b> ${email.recipients}`;
   timestamp.innerHTML=`<b>Timestamp:</b> ${email.timestamp}`;
-  body.innerHTML=`${email.body}`
+  body.innerHTML=`${text}`
   document.querySelector('#emails-view').append(mail_container);
   mail_container.append(mail_col_wrapper)
   mail_col_wrapper.append(subject);
@@ -180,8 +183,9 @@ function load_mail(mail_id,mailbox){
   mail_col_wrapper.append(timestamp);
   mail_col_wrapper.append(body);
 
-  if (mailbox=='inbox')
+  if (mailbox=='inbox' || mailbox=='archive')
   {
+
     const status=document.createElement('button');
     status.setAttribute('id','mail_status');
     status.addEventListener('click',()=>archive_mail(email));
@@ -193,13 +197,18 @@ function load_mail(mail_id,mailbox){
     else{
       status.classList.add('btn','btn-dark');
       status.innerHTML='UnArchive';
-    }  
-    const reply=document.createElement('button');
-    reply.classList.add('btn','btn-primary','rounded-pill');
-    reply.innerHTML='Reply';
-    reply.setAttribute('id','mail_reply');
-    reply.addEventListener('click',()=>reply_mail(email));
-    mail_col_wrapper.append(reply);
+    } 
+
+    if (mailbox=="inbox")
+    {
+      const reply=document.createElement('button');
+      reply.classList.add('btn','btn-primary','rounded-pill');
+      reply.innerHTML='Reply';
+      reply.setAttribute('id','mail_reply');
+      reply.addEventListener('click',()=>reply_mail(email));
+      mail_col_wrapper.append(reply);
+    }
+   
   }
 
   });
@@ -213,8 +222,7 @@ function load_mail(mail_id,mailbox){
   }
 
   function archive_mail(email){
-  console.log(email.id)
-  console.log(`Archiving mail ${email.id}`);
+  // console.log(`Archiving mail ${email.id}`);
   archive(email);
   load_mailbox('inbox')
   window.location.reload();
@@ -247,9 +255,19 @@ function load_mail(mail_id,mailbox){
 
   function reply_mail(email)
   {
-    console.log(`replying email ${email.id}`)
+    // console.log(`replying email ${email.id}`);
     compose_email();
     document.querySelector('#compose-recipients').value =email.sender;
-    document.querySelector('#compose-subject').value = `Re: ${email.subject}`;
-    document.querySelector('#compose-body').value = `On ${email.timestamp} ${email.sender} wrote:\n<${email.body}>`;
+    //Apply regEx to extract the needed string after Re
+    const re= new RegExp('re.*:(.*)','i');
+    console.log('Regex:'+ re.test(email.subject))
+    if (re.test(email.subject)){
+      document.querySelector('#compose-subject').value = `Re:${email.subject.match(re)[1]}`;
+    }
+    else{
+      document.querySelector('#compose-subject').value = `Re: ${email.subject}`;
+    }
+    let text=email.body
+    text=text.replaceAll('\n','\n\t');
+    document.querySelector('#compose-body').value = `\n\n \n\n\tOn ${email.timestamp} ${email.sender} wrote:\n\t${text}`;
   }
